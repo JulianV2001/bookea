@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo para los dueños de comercios/clubes
+model Business {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  phone         String
+  address       String
+  businessType  String    // "SPORTS" o "SERVICE"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  services      Service[]
+  schedules     Schedule[]
+  appointments  Appointment[]
+}
+
+// Modelo para los servicios o canchas
+model Service {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  duration      Int       // duración en minutos
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id])
+  appointments  Appointment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Modelo para los horarios de atención
+model Schedule {
+  id            String    @id @default(cuid())
+  dayOfWeek     Int       // 0-6 (Domingo-Sábado)
+  startTime     String    // formato "HH:mm"
+  endTime       String    // formato "HH:mm"
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Modelo para los clientes
+model Customer {
+  id            String    @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String    @unique
+  phone         String
+  appointments  Appointment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// Modelo para los turnos
+model Appointment {
+  id            String    @id @default(cuid())
+  date          DateTime
+  startTime     String    // formato "HH:mm"
+  endTime       String    // formato "HH:mm"
+  status        String    // "PENDING", "CONFIRMED", "CANCELLED"
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  serviceId     String
+  service       Service   @relation(fields: [serviceId], references: [id])
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+} 
