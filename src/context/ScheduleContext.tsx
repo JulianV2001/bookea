@@ -1,12 +1,16 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
+
+type TimeBlock = {
+  id: string
+  openTime: string
+  closeTime: string
+}
 
 type DaySchedule = {
   isOpen: boolean
-  openTime: string
-  closeTime: string
-  intervals: string[]
+  timeBlocks: TimeBlock[]
   blockedHours: string[]
 }
 
@@ -27,6 +31,7 @@ type ScheduleContextType = {
   removeSpecialDate: (date: string) => void
   maxBookingDays: number
   updateMaxBookingDays: (days: number) => void
+  isLoading: boolean
 }
 
 const ScheduleContext = createContext<ScheduleContextType | undefined>(undefined)
@@ -35,13 +40,50 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({})
   const [specialDates, setSpecialDates] = useState<SpecialDate[]>([])
   const [maxBookingDays, setMaxBookingDays] = useState<number>(30)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+
+  // Cargar datos del localStorage al inicializar
+  useEffect(() => {
+    try {
+      const savedScheduleConfig = localStorage.getItem('scheduleConfig')
+      if (savedScheduleConfig) {
+        setScheduleConfig(JSON.parse(savedScheduleConfig))
+      }
+      
+      const savedSpecialDates = localStorage.getItem('specialDates')
+      if (savedSpecialDates) {
+        setSpecialDates(JSON.parse(savedSpecialDates))
+      }
+      
+      const savedMaxBookingDays = localStorage.getItem('maxBookingDays')
+      if (savedMaxBookingDays) {
+        setMaxBookingDays(Number(savedMaxBookingDays))
+      }
+    } catch (error) {
+      console.error('Error loading schedule data from localStorage:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   const updateScheduleConfig = (config: ScheduleConfig) => {
     setScheduleConfig(config)
+    // Guardar en localStorage
+    try {
+      localStorage.setItem('scheduleConfig', JSON.stringify(config))
+    } catch (error) {
+      console.error('Error saving schedule config to localStorage:', error)
+    }
   }
 
   const updateMaxBookingDays = (days: number) => {
     setMaxBookingDays(days)
+    // Guardar en localStorage
+    try {
+      localStorage.setItem('maxBookingDays', days.toString())
+    } catch (error) {
+      console.error('Error saving maxBookingDays to localStorage:', error)
+    }
   }
 
   const addSpecialDate = (date: string, type: 'closed' | 'special') => {
@@ -51,7 +93,16 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     const adjustedDate = new Date(year, month - 1, day)
     const formattedDate = adjustedDate.toISOString().split('T')[0]
     
-    setSpecialDates(prev => [...prev, { date: formattedDate, type }])
+    setSpecialDates(prev => {
+      const newSpecialDates = [...prev, { date: formattedDate, type }]
+      // Guardar en localStorage
+      try {
+        localStorage.setItem('specialDates', JSON.stringify(newSpecialDates))
+      } catch (error) {
+        console.error('Error saving special dates to localStorage:', error)
+      }
+      return newSpecialDates
+    })
   }
 
   const removeSpecialDate = (dateToRemove: string) => {
@@ -59,11 +110,20 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     const [year, month, day] = dateToRemove.split('-').map(Number)
     const formattedDateToRemove = new Date(year, month - 1, day).toISOString().split('T')[0]
     
-    setSpecialDates(prev => prev.filter(({ date }) => {
-      const [y, m, d] = date.split('-').map(Number)
-      const formattedDate = new Date(y, m - 1, d).toISOString().split('T')[0]
-      return formattedDate !== formattedDateToRemove
-    }))
+    setSpecialDates(prev => {
+      const newSpecialDates = prev.filter(({ date }) => {
+        const [y, m, d] = date.split('-').map(Number)
+        const formattedDate = new Date(y, m - 1, d).toISOString().split('T')[0]
+        return formattedDate !== formattedDateToRemove
+      })
+      // Guardar en localStorage
+      try {
+        localStorage.setItem('specialDates', JSON.stringify(newSpecialDates))
+      } catch (error) {
+        console.error('Error saving special dates to localStorage:', error)
+      }
+      return newSpecialDates
+    })
   }
 
   return (
@@ -74,7 +134,8 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       addSpecialDate,
       removeSpecialDate,
       maxBookingDays,
-      updateMaxBookingDays
+      updateMaxBookingDays,
+      isLoading
     }}>
       {children}
     </ScheduleContext.Provider>

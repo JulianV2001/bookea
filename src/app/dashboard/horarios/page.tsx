@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import DashboardHeader from '@/components/DashboardHeader'
 import Sidebar from '@/components/Sidebar'
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, CalendarIcon, ClockIcon } from '@heroicons/react/24/outline'
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, CalendarIcon, ClockIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useSchedule } from '@/context/ScheduleContext'
 
 // Días de la semana
@@ -23,14 +23,15 @@ const timeSlots = Array.from({ length: 16 }, (_, i) => {
   return `${hour.toString().padStart(2, '0')}:00`
 })
 
-// Intervalos de tiempo
-const timeIntervals = ['30 min', '1 hora', '1.5 horas', '2 horas']
+type TimeBlock = {
+  id: string
+  openTime: string
+  closeTime: string
+}
 
 type DaySchedule = {
   isOpen: boolean
-  openTime: string
-  closeTime: string
-  intervals: string[]
+  timeBlocks: TimeBlock[]
   blockedHours: string[]
 }
 
@@ -40,78 +41,135 @@ type ScheduleConfig = {
 
 export default function HorariosPage() {
   const { scheduleConfig, updateScheduleConfig, specialDates, addSpecialDate, removeSpecialDate, maxBookingDays, updateMaxBookingDays } = useSchedule()
-  const [selectedDays, setSelectedDays] = useState<number[]>([])
-  const [selectedHours, setSelectedHours] = useState<string[]>([])
-  const [isEditing, setIsEditing] = useState(false)
   const [activeTab, setActiveTab] = useState<'weekly' | 'special'>('weekly')
-  const [globalIntervals, setGlobalIntervals] = useState<string[]>([])
   const [selectedSpecialDate, setSelectedSpecialDate] = useState<string>('')
 
-  // Función para generar horarios basados en intervalos
-  const generateTimeSlots = (intervals: string[]) => {
-    const slots: string[] = []
-    const startHour = 7 // 7 AM
-    const endHour = 22 // 10 PM
-
-    intervals.forEach(interval => {
-      const minutes = interval === '30 min' ? 30 :
-                     interval === '1 hora' ? 60 :
-                     interval === '1.5 horas' ? 90 : 120
-
-      for (let hour = startHour; hour < endHour; hour++) {
-        for (let minute = 0; minute < 60; minute += minutes) {
-          const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
-          if (!slots.includes(time)) {
-            slots.push(time)
-          }
-        }
-      }
-    })
-
-    return slots.sort()
-  }
-
-  // Función para actualizar horarios cuando cambian los intervalos
-  const updateTimeSlots = (intervals: string[]) => {
-    const newTimeSlots = generateTimeSlots(intervals)
-    setGlobalIntervals(intervals)
-
-    // Actualizar la configuración de horarios para mantener solo los slots válidos
-    const newConfig = { ...scheduleConfig }
-    Object.keys(newConfig).forEach(dayId => {
-      const dayConfig = newConfig[Number(dayId)]
-      if (dayConfig) {
-        // Encontrar el slot más cercano para la hora de apertura
-        const openTime = newTimeSlots.find(time => time >= dayConfig.openTime) || newTimeSlots[0]
-        // Encontrar el slot más cercano para la hora de cierre
-        const closeTime = newTimeSlots.find(time => time <= dayConfig.closeTime) || newTimeSlots[newTimeSlots.length - 1]
-
-        newConfig[Number(dayId)] = {
-          ...dayConfig,
-          openTime,
-          closeTime,
-          intervals: dayConfig.intervals || [],
-          blockedHours: dayConfig.blockedHours || []
-        }
-      }
-    })
-    updateScheduleConfig(newConfig)
+  // Obtener los días que están actualmente abiertos
+  const getOpenDays = () => {
+    return weekDays.filter(day => scheduleConfig[day.id]?.isOpen).map(day => day.id)
   }
 
   const handleDayToggle = (dayId: number) => {
-    setSelectedDays(prev => 
-      prev.includes(dayId) 
-        ? prev.filter(id => id !== dayId)
-        : [...prev, dayId]
-    )
+    const newConfig = { ...scheduleConfig }
+    const currentDay = scheduleConfig[dayId]
+    
+    // Si el día no está configurado, marcarlo como abierto por defecto
+    if (!currentDay) {
+      newConfig[dayId] = {
+        isOpen: true,
+        timeBlocks: [
+          { id: '1', openTime: '09:00', closeTime: '12:00' },
+          { id: '2', openTime: '14:00', closeTime: '18:00' }
+        ],
+        blockedHours: []
+      }
+    } else {
+      // Si ya está configurado, cambiar su estado
+      newConfig[dayId] = {
+        ...currentDay,
+        isOpen: !currentDay.isOpen
+      }
+    }
+    
+    updateScheduleConfig(newConfig)
+  }
+
+  const handleDaySetOpen = (dayId: number) => {
+    const newConfig = { ...scheduleConfig }
+    const currentDay = scheduleConfig[dayId]
+    
+    newConfig[dayId] = {
+      isOpen: true,
+      timeBlocks: currentDay?.timeBlocks || [
+        { id: '1', openTime: '09:00', closeTime: '12:00' },
+        { id: '2', openTime: '14:00', closeTime: '18:00' }
+      ],
+      blockedHours: currentDay?.blockedHours || []
+    }
+    
+    updateScheduleConfig(newConfig)
+  }
+
+  const handleDaySetClosed = (dayId: number) => {
+    const newConfig = { ...scheduleConfig }
+    const currentDay = scheduleConfig[dayId]
+    
+    newConfig[dayId] = {
+      isOpen: false,
+      timeBlocks: currentDay?.timeBlocks || [
+        { id: '1', openTime: '09:00', closeTime: '12:00' },
+        { id: '2', openTime: '14:00', closeTime: '18:00' }
+      ],
+      blockedHours: currentDay?.blockedHours || []
+    }
+    
+    updateScheduleConfig(newConfig)
+  }
+
+  const handleSetAllDaysClosed = () => {
+    const newConfig = { ...scheduleConfig }
+    
+    weekDays.forEach(day => {
+      newConfig[day.id] = {
+        isOpen: false,
+        timeBlocks: [
+          { id: '1', openTime: '09:00', closeTime: '12:00' },
+          { id: '2', openTime: '14:00', closeTime: '18:00' }
+        ],
+        blockedHours: []
+      }
+    })
+    
+    updateScheduleConfig(newConfig)
+  }
+
+  const handleAddTimeBlock = (dayId: number) => {
+    const newConfig = { ...scheduleConfig }
+    const currentBlocks = newConfig[dayId]?.timeBlocks || []
+    const newBlockId = (currentBlocks.length + 1).toString()
+    
+    newConfig[dayId] = {
+      ...newConfig[dayId],
+      timeBlocks: [
+        ...currentBlocks,
+        { id: newBlockId, openTime: '09:00', closeTime: '12:00' }
+      ]
+    }
+    
+    updateScheduleConfig(newConfig)
+  }
+
+  const handleRemoveTimeBlock = (dayId: number, blockId: string) => {
+    const newConfig = { ...scheduleConfig }
+    const currentBlocks = newConfig[dayId]?.timeBlocks || []
+    
+    if (currentBlocks.length > 1) {
+      newConfig[dayId] = {
+        ...newConfig[dayId],
+        timeBlocks: currentBlocks.filter(block => block.id !== blockId)
+      }
+      updateScheduleConfig(newConfig)
+    }
+  }
+
+  const handleUpdateTimeBlock = (dayId: number, blockId: string, field: 'openTime' | 'closeTime', value: string) => {
+    const newConfig = { ...scheduleConfig }
+    const currentBlocks = newConfig[dayId]?.timeBlocks || []
+    
+    newConfig[dayId] = {
+      ...newConfig[dayId],
+      timeBlocks: currentBlocks.map(block => 
+        block.id === blockId 
+          ? { ...block, [field]: value }
+          : block
+      )
+    }
+    
+    updateScheduleConfig(newConfig)
   }
 
   const handleHourToggle = (hour: string) => {
-    setSelectedHours(prev =>
-      prev.includes(hour)
-        ? prev.filter(h => h !== hour)
-        : [...prev, hour]
-    )
+    // Esta función se mantiene por compatibilidad pero no se usa en la versión actual
   }
 
   const handleCopySchedule = (fromDay: number, toDay: number) => {
@@ -132,19 +190,21 @@ export default function HorariosPage() {
     removeSpecialDate(dateToRemove)
   }
 
-  const handleSaveChanges = () => {
-    const newConfig: ScheduleConfig = {}
+  const handleSetAllDaysOpen = () => {
+    const newConfig = { ...scheduleConfig }
+    
     weekDays.forEach(day => {
       newConfig[day.id] = {
-        isOpen: selectedDays.includes(day.id),
-        openTime: scheduleConfig[day.id]?.openTime || '09:00',
-        closeTime: scheduleConfig[day.id]?.closeTime || '18:00',
-        intervals: scheduleConfig[day.id]?.intervals || [],
-        blockedHours: scheduleConfig[day.id]?.blockedHours || []
+        isOpen: true,
+        timeBlocks: [
+          { id: '1', openTime: '09:00', closeTime: '12:00' },
+          { id: '2', openTime: '14:00', closeTime: '18:00' }
+        ],
+        blockedHours: []
       }
     })
+    
     updateScheduleConfig(newConfig)
-    setIsEditing(false)
   }
 
   return (
@@ -158,25 +218,6 @@ export default function HorariosPage() {
             <div className="border-b border-gray-200 p-4">
               <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-semibold text-gray-800">Horarios de Atención</h1>
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => {
-                      if (!isEditing) {
-                        // Al entrar en modo edición, cargar los días que ya están configurados
-                        const openDays = weekDays
-                          .filter(day => scheduleConfig[day.id]?.isOpen)
-                          .map(day => day.id)
-                        setSelectedDays(openDays)
-                      } else {
-                        handleSaveChanges()
-                      }
-                      setIsEditing(!isEditing)
-                    }}
-                    className="px-4 py-2 bg-[#006AFC] text-white rounded-lg hover:bg-blue-600"
-                  >
-                    {isEditing ? 'Guardar Cambios' : 'Editar Horarios'}
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -233,57 +274,89 @@ export default function HorariosPage() {
                 <>
                   {/* Días de la semana */}
                   <div className="mb-8">
-                    <h2 className="text-lg font-medium text-gray-700 mb-4">Días de Atención</h2>
-                    <div className="grid grid-cols-7 gap-4">
-                      {weekDays.map(day => (
-                        <div key={day.id} className="relative">
-                          <button
-                            onClick={() => isEditing && handleDayToggle(day.id)}
-                            className={`w-full p-3 rounded-lg border ${
-                              selectedDays.includes(day.id)
-                                ? 'bg-[#006AFC] text-white border-[#006AFC]'
-                                : 'bg-white text-gray-700 border-gray-200 hover:border-[#006AFC]'
-                            } ${!isEditing && 'cursor-default'}`}
-                          >
-                            {day.name}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Configuración de Intervalos */}
-                  <div className="mb-8">
-                    <h2 className="text-lg font-medium text-gray-700 mb-4">Intervalos de Tiempo</h2>
-                    <div className="grid grid-cols-4 gap-4">
-                      {timeIntervals.map(interval => (
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-medium text-gray-700">Días de Atención</h2>
+                      <div className="flex space-x-2">
                         <button
-                          key={interval}
-                          onClick={() => isEditing && updateTimeSlots(
-                            globalIntervals.includes(interval)
-                              ? globalIntervals.filter(i => i !== interval)
-                              : [...globalIntervals, interval]
-                          )}
-                          className={`p-3 rounded-lg border ${
-                            globalIntervals.includes(interval)
-                              ? 'bg-[#006AFC] text-white border-[#006AFC]'
-                              : 'bg-white text-gray-700 border-gray-200 hover:border-[#006AFC]'
-                          } ${!isEditing && 'cursor-default'}`}
+                          onClick={handleSetAllDaysOpen}
+                          className="px-3 py-1 text-sm bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
                         >
-                          {interval}
+                          Marcar Todos Abiertos
                         </button>
-                      ))}
+                        <button
+                          onClick={handleSetAllDaysClosed}
+                          className="px-3 py-1 text-sm bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                        >
+                          Marcar Todos Cerrados
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-7 gap-4">
+                      {weekDays.map(day => {
+                        const isConfigured = !!scheduleConfig[day.id]
+                        const isOpen = scheduleConfig[day.id]?.isOpen || false
+                        
+                        return (
+                          <div key={day.id} className="relative">
+                            <div className="text-center">
+                              <div className={`w-full p-3 rounded-lg border transition-colors ${
+                                isConfigured
+                                  ? isOpen
+                                    ? 'bg-[#006AFC] text-white border-[#006AFC]'
+                                    : 'bg-red-100 text-red-700 border-red-200'
+                                  : 'bg-gray-100 text-gray-500 border-gray-200'
+                              }`}>
+                                {day.name}
+                              </div>
+                              <div className="mt-2 space-y-1">
+                                {!isConfigured ? (
+                                  <div className="text-xs text-gray-500">No configurado</div>
+                                ) : isOpen ? (
+                                  <div className="text-xs text-green-600 font-medium">Abierto</div>
+                                ) : (
+                                  <div className="text-xs text-red-600 font-medium">Cerrado</div>
+                                )}
+                              </div>
+                              <div className="mt-2 space-y-1">
+                                {!isConfigured ? (
+                                  <div className="flex flex-col space-y-1">
+                                    <button
+                                      onClick={() => handleDaySetOpen(day.id)}
+                                      className="px-2 py-1 text-xs bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                                    >
+                                      Marcar Abierto
+                                    </button>
+                                    <button
+                                      onClick={() => handleDaySetClosed(day.id)}
+                                      className="px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors"
+                                    >
+                                      Marcar Cerrado
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => handleDayToggle(day.id)}
+                                    className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                                  >
+                                    Cambiar Estado
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
 
                   {/* Horarios por día */}
                   <div className="p-4">
                     <h2 className="text-lg font-medium text-gray-700 mb-4">Horarios por Día</h2>
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {weekDays.map(day => {
                         const dayId = day.id.toString()
                         // Si el día no está seleccionado, mostrar mensaje de cerrado
-                        if (!selectedDays.includes(day.id)) {
+                        if (!scheduleConfig[day.id]?.isOpen) {
                           return (
                             <div key={day.id} className="flex items-center space-x-4 p-4 border border-red-100 rounded-lg bg-red-50">
                               <div className="w-32">
@@ -297,58 +370,73 @@ export default function HorariosPage() {
                         }
 
                         // Si el día está seleccionado, mostrar configuración de horarios
+                        const timeBlocks = scheduleConfig[day.id]?.timeBlocks || [
+                          { id: '1', openTime: '09:00', closeTime: '12:00' },
+                          { id: '2', openTime: '14:00', closeTime: '18:00' }
+                        ]
+
                         return (
-                          <div key={day.id} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-                            <div className="w-32">
-                              <span className="font-medium">{day.name}</span>
-                            </div>
-                            <div className="flex-1 flex items-center space-x-4">
-                              <select
-                                className="px-3 py-2 border border-gray-200 rounded-lg"
-                                value={scheduleConfig[day.id]?.openTime || '09:00'}
-                                onChange={(e) => {
-                                  const newConfig = { ...scheduleConfig }
-                                  newConfig[day.id] = {
-                                    ...newConfig[day.id],
-                                    openTime: e.target.value,
-                                    intervals: newConfig[day.id]?.intervals || [],
-                                    blockedHours: newConfig[day.id]?.blockedHours || []
-                                  }
-                                  updateScheduleConfig(newConfig)
-                                }}
-                              >
-                                {generateTimeSlots(globalIntervals).map(time => (
-                                  <option key={time} value={time}>{time}</option>
-                                ))}
-                              </select>
-                              <span>a</span>
-                              <select
-                                className="px-3 py-2 border border-gray-200 rounded-lg"
-                                value={scheduleConfig[day.id]?.closeTime || '18:00'}
-                                onChange={(e) => {
-                                  const newConfig = { ...scheduleConfig }
-                                  newConfig[day.id] = {
-                                    ...newConfig[day.id],
-                                    closeTime: e.target.value,
-                                    intervals: newConfig[day.id]?.intervals || [],
-                                    blockedHours: newConfig[day.id]?.blockedHours || []
-                                  }
-                                  updateScheduleConfig(newConfig)
-                                }}
-                              >
-                                {generateTimeSlots(globalIntervals).map(time => (
-                                  <option key={time} value={time}>{time}</option>
-                                ))}
-                              </select>
-                              {isEditing && (
+                          <div key={day.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                              <span className="font-medium text-lg">{day.name}</span>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleAddTimeBlock(day.id)}
+                                  className="px-3 py-1 text-sm bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors flex items-center space-x-1"
+                                >
+                                  <PlusIcon className="h-4 w-4" />
+                                  <span>Agregar Bloque</span>
+                                </button>
                                 <button
                                   onClick={() => handleCopySchedule(day.id, (day.id % 7) + 1)}
-                                  className="text-[#006AFC] hover:text-blue-600"
+                                  className="text-[#006AFC] hover:text-blue-600 transition-colors p-2 hover:bg-blue-50 rounded-lg"
                                   title="Copiar al siguiente día"
                                 >
                                   <ChevronRightIcon className="h-5 w-5" />
                                 </button>
-                              )}
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              {timeBlocks.map((block, index) => (
+                                <div key={block.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-sm font-medium text-gray-600">
+                                      Bloque {index + 1}:
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <select
+                                      className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] text-sm"
+                                      value={block.openTime}
+                                      onChange={(e) => handleUpdateTimeBlock(day.id, block.id, 'openTime', e.target.value)}
+                                    >
+                                      {timeSlots.map(time => (
+                                        <option key={time} value={time}>{time}</option>
+                                      ))}
+                                    </select>
+                                    <span className="text-gray-500">a</span>
+                                    <select
+                                      className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] text-sm"
+                                      value={block.closeTime}
+                                      onChange={(e) => handleUpdateTimeBlock(day.id, block.id, 'closeTime', e.target.value)}
+                                    >
+                                      {timeSlots.map(time => (
+                                        <option key={time} value={time}>{time}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  {timeBlocks.length > 1 && (
+                                    <button
+                                      onClick={() => handleRemoveTimeBlock(day.id, block.id)}
+                                      className="text-red-500 hover:text-red-700 transition-colors p-1 hover:bg-red-50 rounded"
+                                      title="Eliminar bloque"
+                                    >
+                                      <TrashIcon className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )
