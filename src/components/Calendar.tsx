@@ -225,6 +225,7 @@ export default function Calendar({ userName }: { userName: string }) {
     
     // Resetear el personal seleccionado cuando cambie el servicio
     setSelectedStaff(null)
+    setSelectedStaffId('')
     setShowStaffDropdown(false)
     
     if (service) {
@@ -252,6 +253,12 @@ export default function Calendar({ userName }: { userName: string }) {
 
     // Si hay personal seleccionado, guardar en el contexto del personal
     if (selectedStaff) {
+      // Crear una nueva fecha sin problemas de zona horaria
+      const year = selectedDate.getFullYear()
+      const month = selectedDate.getMonth()
+      const day = selectedDate.getDate()
+      const cleanDate = new Date(year, month, day)
+      
       const newStaffReservation = {
         id: Math.random().toString(36).substr(2, 9),
         clientName: formData.name,
@@ -261,7 +268,7 @@ export default function Calendar({ userName }: { userName: string }) {
         clientEmail: formData.email,
         clientPhone: formData.phone,
         time: selectedCell.time,
-        date: selectedDate,
+        date: cleanDate,
         staffId: selectedStaff.id
       }
       
@@ -320,12 +327,14 @@ export default function Calendar({ userName }: { userName: string }) {
     
     // Si no hay personal seleccionado, buscar en reservas generales
     return reservations.find(r => {
+      // Convertir la fecha de la reserva a string para comparación consistente
       const reservationDate = new Date(r.date)
+      const reservationDateString = reservationDate.toISOString().split('T')[0]
+      const cellDateString = getDateString(cellDate)
+      
       return r.serviceId === selectedService.id &&
              r.time === time && 
-             reservationDate.getDate() === cellDate.getDate() &&
-             reservationDate.getMonth() === cellDate.getMonth() &&
-             reservationDate.getFullYear() === cellDate.getFullYear()
+             reservationDateString === cellDateString
     })
   }
 
@@ -336,6 +345,7 @@ export default function Calendar({ userName }: { userName: string }) {
     setSelectedTime(null)
     setFormData({ name: '', serviceId: '', email: '', phone: '' })
     setSelectedService(null)
+    setSelectedStaff(null)
     setSelectedStaffId('')
     setShowStaffDropdown(false)
   }
@@ -792,27 +802,56 @@ export default function Calendar({ userName }: { userName: string }) {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Servicio
-                  </label>
-                  <select
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] focus:border-transparent"
-                    value={formData.serviceId}
-                    onChange={(e) => handleServiceChange(e.target.value)}
-                  >
-                    <option value="">Seleccionar servicio</option>
-                    {services.map((service) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} ({service.durationInterval})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Mostrar información del servicio y personal seleccionado */}
+                {selectedService && (
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-gray-800">Servicio seleccionado</h3>
+                        <p className="text-gray-600">{selectedService.name} ({selectedService.durationInterval})</p>
+                        {selectedStaff && (
+                          <p className="text-gray-600">Personal: {selectedStaff.name}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedService(null)
+                          setSelectedStaff(null)
+                          setFormData({ ...formData, serviceId: '' })
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Cambiar
+                      </button>
+                    </div>
+                  </div>
+                )}
 
-                {/* Selector de personal */}
-                {selectedService?.needsStaff && (
+                {/* Solo mostrar selector de servicio si no hay uno seleccionado */}
+                {!selectedService && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Servicio
+                    </label>
+                    <select
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] focus:border-transparent"
+                      value={formData.serviceId}
+                      onChange={(e) => handleServiceChange(e.target.value)}
+                    >
+                      <option value="">Seleccionar servicio</option>
+                      {services.map((service) => (
+                        <option key={service.id} value={service.id}>
+                          {service.name} ({service.durationInterval})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Solo mostrar selector de personal si no hay uno seleccionado y el servicio lo requiere */}
+                {!selectedStaff && selectedService?.needsStaff && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Personal asignado
@@ -845,6 +884,7 @@ export default function Calendar({ userName }: { userName: string }) {
                                   key={member.id}
                                   type="button"
                                   onClick={() => {
+                                    setSelectedStaff(member)
                                     setSelectedStaffId(member.id)
                                     setShowStaffDropdown(false)
                                   }}
@@ -865,6 +905,7 @@ export default function Calendar({ userName }: { userName: string }) {
                   </div>
                 )}
 
+                {/* Solo mostrar selector de día y hora si no se seleccionó una celda específica */}
                 {!selectedCell && selectedService && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -921,6 +962,29 @@ export default function Calendar({ userName }: { userName: string }) {
                           ))
                         })() : []}
                       </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mostrar información del turno seleccionado si se hizo click en una celda */}
+                {selectedCell && selectedService && (
+                  <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                    <h3 className="font-medium text-gray-800 mb-2">Turno seleccionado</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Día:</span>
+                        <p className="font-medium">
+                          {getWeekDates(currentDate)[selectedCell.day].toLocaleDateString('es-ES', { 
+                            weekday: 'long', 
+                            day: 'numeric', 
+                            month: 'short' 
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Hora:</span>
+                        <p className="font-medium">{selectedCell.time}</p>
+                      </div>
                     </div>
                   </div>
                 )}

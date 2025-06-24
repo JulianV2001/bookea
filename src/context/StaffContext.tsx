@@ -145,12 +145,11 @@ export function StaffProvider({ children }: { children: ReactNode }) {
 
   const getStaffReservations = (staffId: string, date: string) => {
     return staffReservations.filter(reservation => {
+      // Convertir la fecha de la reserva a string en formato YYYY-MM-DD para comparación
       const reservationDate = new Date(reservation.date)
-      const targetDate = new Date(date)
-      return reservation.staffId === staffId &&
-             reservationDate.getDate() === targetDate.getDate() &&
-             reservationDate.getMonth() === targetDate.getMonth() &&
-             reservationDate.getFullYear() === targetDate.getFullYear()
+      const reservationDateString = reservationDate.toISOString().split('T')[0]
+      
+      return reservation.staffId === staffId && reservationDateString === date
     })
   }
 
