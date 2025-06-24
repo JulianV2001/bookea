@@ -3,12 +3,13 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ScheduleProvider } from '@/context/ScheduleContext'
 import { ServicesProvider } from '@/context/ServicesContext'
+import { StaffProvider } from '@/context/StaffContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Bookea',
-  description: 'Sistema de reservas online',
+  title: 'BOOKEA MVP',
+  description: 'Sistema de reservas y gestión de negocio',
 }
 
 export default function RootLayout({
@@ -21,7 +22,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <ScheduleProvider>
           <ServicesProvider>
-            {children}
+            <StaffProvider>
+              {children}
+            </StaffProvider>
           </ServicesProvider>
         </ScheduleProvider>
       </body>

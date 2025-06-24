@@ -13,6 +13,7 @@ export interface Service {
   category: string
   type: 'service' | 'sport' | 'consultation'
   isActive: boolean
+  needsStaff: boolean // Nueva propiedad para indicar si el servicio necesita personal
 }
 
 export interface TimeSlot {
@@ -51,6 +52,84 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
       const savedServices = localStorage.getItem('services')
       if (savedServices) {
         setServices(JSON.parse(savedServices))
+      } else {
+        // Datos de ejemplo si no hay servicios guardados
+        const exampleServices: Service[] = [
+          {
+            id: '1',
+            name: 'Corte de Cabello',
+            type: 'service',
+            category: 'Peluquería',
+            duration: 30,
+            durationInterval: '30 min',
+            price: 2500,
+            description: 'Corte de cabello profesional',
+            isActive: true,
+            needsStaff: true // Requiere personal específico
+          },
+          {
+            id: '2',
+            name: 'Barba',
+            type: 'service',
+            category: 'Peluquería',
+            duration: 20,
+            durationInterval: '20 min',
+            price: 1500,
+            description: 'Arreglo de barba',
+            isActive: true,
+            needsStaff: true // Requiere personal específico
+          },
+          {
+            id: '3',
+            name: 'Corte + Barba',
+            type: 'service',
+            category: 'Peluquería',
+            duration: 45,
+            durationInterval: '45 min',
+            price: 3500,
+            description: 'Corte de cabello y arreglo de barba',
+            isActive: true,
+            needsStaff: true // Requiere personal específico
+          },
+          {
+            id: '4',
+            name: 'Cancha de Fútbol',
+            type: 'sport',
+            category: 'Deportes',
+            duration: 60,
+            durationInterval: '1 hora',
+            price: 5000,
+            description: 'Alquiler de cancha de fútbol',
+            isActive: true,
+            needsStaff: false // No requiere personal específico
+          },
+          {
+            id: '5',
+            name: 'Cancha de Pádel',
+            type: 'sport',
+            category: 'Deportes',
+            duration: 60,
+            durationInterval: '1 hora',
+            price: 3000,
+            description: 'Alquiler de cancha de pádel',
+            isActive: true,
+            needsStaff: false // No requiere personal específico
+          },
+          {
+            id: '6',
+            name: 'Consulta Médica',
+            type: 'consultation',
+            category: 'Salud',
+            duration: 30,
+            durationInterval: '30 min',
+            price: 8000,
+            description: 'Consulta médica general',
+            isActive: true,
+            needsStaff: true // Requiere personal específico
+          }
+        ]
+        setServices(exampleServices)
+        localStorage.setItem('services', JSON.stringify(exampleServices))
       }
     } catch (error) {
       console.error('Error loading services from localStorage:', error)

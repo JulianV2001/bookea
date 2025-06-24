@@ -61,6 +61,7 @@ export default function ServiciosPage() {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     const selectedInterval = formData.get('durationInterval') as string
+    const needsStaffValue = formData.get('needsStaff') as string
     
     const newService: Service = {
       id: editingService?.id || Math.random().toString(36).substr(2, 9),
@@ -71,7 +72,8 @@ export default function ServiciosPage() {
       durationInterval: selectedInterval,
       category: formData.get('category') as string,
       type: selectedType!,
-      isActive: true
+      isActive: true,
+      needsStaff: needsStaffValue === 'yes'
     }
 
     if (editingService) {
@@ -228,7 +230,7 @@ export default function ServiciosPage() {
                   
                   <p className="text-gray-600 mb-4">{service.description}</p>
                   
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="text-center">
                       <div className="font-medium text-gray-800">${service.price}</div>
                       <div className="text-gray-500">Precio</div>
@@ -236,10 +238,6 @@ export default function ServiciosPage() {
                     <div className="text-center">
                       <div className="font-medium text-gray-800">{service.durationInterval || minutesToInterval(service.duration)}</div>
                       <div className="text-gray-500">Duración</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-medium text-gray-800">{service.category}</div>
-                      <div className="text-gray-500">Categoría</div>
                     </div>
                   </div>
                 </div>
@@ -324,44 +322,35 @@ export default function ServiciosPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Categoría</label>
-                <select
-                  name="category"
-                  required
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#006AFC] focus:ring-[#006AFC]"
-                  defaultValue={editingService?.category}
-                >
-                  {selectedType === 'sport' ? (
-                    <>
-                      <option value="Fútbol">Fútbol</option>
-                      <option value="Pádel">Pádel</option>
-                      <option value="Tenis">Tenis</option>
-                      <option value="Basketball">Basketball</option>
-                      <option value="Voleyball">Voleyball</option>
-                      <option value="Otro">Otro</option>
-                    </>
-                  ) : selectedType === 'consultation' ? (
-                    <>
-                      <option value="Consulta Legal">Consulta Legal</option>
-                      <option value="Consulta Contable">Consulta Contable</option>
-                      <option value="Consulta Médica">Consulta Médica</option>
-                      <option value="Consulta Psicológica">Consulta Psicológica</option>
-                      <option value="Consulta Notarial">Consulta Notarial</option>
-                      <option value="Consulta Financiera">Consulta Financiera</option>
-                      <option value="Otro">Otro</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Corte">Corte de pelo</option>
-                      <option value="Barba">Barba</option>
-                      <option value="Tinte">Tinte</option>
-                      <option value="Peinado">Peinado</option>
-                      <option value="Manicure">Manicure</option>
-                      <option value="Pedicure">Pedicure</option>
-                      <option value="Otro">Otro</option>
-                    </>
-                  )}
-                </select>
+                <label className="block text-sm font-medium text-gray-700">¿Necesita personal?</label>
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      name="needsStaff"
+                      value="yes"
+                      id="needsStaffYes"
+                      defaultChecked={editingService?.needsStaff === true}
+                      className="h-4 w-4 text-[#006AFC] focus:ring-[#006AFC] border-gray-300"
+                    />
+                    <label htmlFor="needsStaffYes" className="ml-2 text-sm text-gray-700">
+                      Sí, este servicio requiere personal específico
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      name="needsStaff"
+                      value="no"
+                      id="needsStaffNo"
+                      defaultChecked={editingService?.needsStaff === false}
+                      className="h-4 w-4 text-[#006AFC] focus:ring-[#006AFC] border-gray-300"
+                    />
+                    <label htmlFor="needsStaffNo" className="ml-2 text-sm text-gray-700">
+                      No, este servicio no requiere personal específico
+                    </label>
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button

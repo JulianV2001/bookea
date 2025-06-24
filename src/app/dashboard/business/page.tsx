@@ -29,6 +29,7 @@ interface BusinessInfo {
   website: string
   logo: string
   businessHours: BusinessHours[]
+  news?: string
 }
 
 export default function BusinessPage() {
@@ -183,57 +184,17 @@ export default function BusinessPage() {
                 </div>
               </div>
 
-              {/* Horarios */}
+              {/* Novedades */}
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h2 className="text-lg font-medium text-gray-800 mb-4">Horarios de Atención</h2>
-                <div className="space-y-4">
-                  {businessInfo.businessHours.map((schedule, index) => (
-                    <div key={schedule.day} className="flex items-center space-x-4">
-                      <div className="w-32">
-                        <span className="text-sm font-medium text-gray-700">{schedule.day}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="time"
-                          value={schedule.open}
-                          onChange={(e) => {
-                            const newHours = [...businessInfo.businessHours]
-                            newHours[index].open = e.target.value
-                            setBusinessInfo({ ...businessInfo, businessHours: newHours })
-                          }}
-                          disabled={!isEditing}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] disabled:bg-gray-50"
-                        />
-                        <span className="text-gray-500">a</span>
-                        <input
-                          type="time"
-                          value={schedule.close}
-                          onChange={(e) => {
-                            const newHours = [...businessInfo.businessHours]
-                            newHours[index].close = e.target.value
-                            setBusinessInfo({ ...businessInfo, businessHours: newHours })
-                          }}
-                          disabled={!isEditing}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] disabled:bg-gray-50"
-                        />
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={schedule.isOpen}
-                          onChange={(e) => {
-                            const newHours = [...businessInfo.businessHours]
-                            newHours[index].isOpen = e.target.checked
-                            setBusinessInfo({ ...businessInfo, businessHours: newHours })
-                          }}
-                          disabled={!isEditing}
-                          className="h-4 w-4 text-[#006AFC] focus:ring-[#006AFC] border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-600">Abierto</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h2 className="text-lg font-medium text-gray-800 mb-4">Novedades</h2>
+                <textarea
+                  value={businessInfo.news || ''}
+                  onChange={e => setBusinessInfo({ ...businessInfo, news: e.target.value })}
+                  disabled={!isEditing}
+                  rows={4}
+                  placeholder="Escribe aquí las novedades o anuncios importantes para tus clientes..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] disabled:bg-gray-50"
+                />
               </div>
 
               {/* Sección de Suscripción */}

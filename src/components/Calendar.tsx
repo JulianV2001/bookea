@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, ChevronDownIcon, UserIcon } from '@heroicons/react/24/outline'
 import { useSchedule } from '@/context/ScheduleContext'
 import { useServices, Service, TimeSlot } from '@/context/ServicesContext'
+import { useStaff, Staff } from '@/context/StaffContext'
 
 // Tipo para las reservas
 type Reservation = {
@@ -16,11 +17,13 @@ type Reservation = {
   phone: string
   time: string
   date: Date
+  staffId?: string // Nueva propiedad para el personal asignado
 }
 
 export default function Calendar({ userName }: { userName: string }) {
   const { scheduleConfig, specialDates, maxBookingDays, isLoading } = useSchedule()
   const { services, generateTimeSlots } = useServices()
+  const { staff, getStaffReservations, addStaffReservation } = useStaff()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ time: string; day: number } | null>(null)
@@ -34,8 +37,29 @@ export default function Calendar({ userName }: { userName: string }) {
     phone: ''
   })
   const [selectedService, setSelectedService] = useState<Service | null>(null)
+  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([])
   const [showServiceDropdown, setShowServiceDropdown] = useState(false)
+  const [showStaffDropdown, setShowStaffDropdown] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [selectedDateForPicker, setSelectedDateForPicker] = useState('')
+  const [selectedStaffId, setSelectedStaffId] = useState('')
+
+  // Cerrar calendario desplegable cuando se hace click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (showDatePicker && !target.closest('.date-picker-container')) {
+        setShowDatePicker(false)
+        setSelectedDateForPicker('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showDatePicker])
 
   // Mostrar loading mientras se cargan los datos
   if (isLoading) {
@@ -71,9 +95,9 @@ export default function Calendar({ userName }: { userName: string }) {
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('es-ES', { 
-      weekday: 'long', 
+      weekday: 'short', 
       year: 'numeric', 
-      month: 'long', 
+      month: 'short', 
       day: 'numeric' 
     })
   }
@@ -115,6 +139,20 @@ export default function Calendar({ userName }: { userName: string }) {
 
   const showToday = () => {
     setCurrentDate(new Date())
+  }
+
+  const handleDatePickerChange = (dateString: string) => {
+    if (dateString) {
+      const newDate = new Date(dateString)
+      setCurrentDate(newDate)
+      setShowDatePicker(false)
+      setSelectedDateForPicker('')
+    }
+  }
+
+  // Obtener personal disponible para un servicio
+  const getAvailableStaffForService = (serviceId: string) => {
+    return staff.filter(member => member.services.includes(serviceId))
   }
 
   const isDayOpen = (date: Date) => {
@@ -185,6 +223,10 @@ export default function Calendar({ userName }: { userName: string }) {
     setFormData({ ...formData, serviceId })
     setShowServiceDropdown(false)
     
+    // Resetear el personal seleccionado cuando cambie el servicio
+    setSelectedStaff(null)
+    setShowStaffDropdown(false)
+    
     if (service) {
       // Generar turnos disponibles para la semana actual
       const weekDates = getWeekDates(currentDate)
@@ -208,22 +250,44 @@ export default function Calendar({ userName }: { userName: string }) {
     const weekDates = getWeekDates(currentDate)
     const selectedDate = weekDates[selectedCell.day]
 
-    const newReservation: Reservation = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: formData.name,
-      serviceId: selectedService.id,
-      serviceName: selectedService.name,
-      duration: selectedService.durationInterval,
-      email: formData.email,
-      phone: formData.phone,
-      time: selectedCell.time,
-      date: selectedDate
+    // Si hay personal seleccionado, guardar en el contexto del personal
+    if (selectedStaff) {
+      const newStaffReservation = {
+        id: Math.random().toString(36).substr(2, 9),
+        clientName: formData.name,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        duration: selectedService.durationInterval,
+        clientEmail: formData.email,
+        clientPhone: formData.phone,
+        time: selectedCell.time,
+        date: selectedDate,
+        staffId: selectedStaff.id
+      }
+      
+      addStaffReservation(newStaffReservation)
+    } else {
+      // Si no hay personal, guardar en reservas generales
+      const newReservation: Reservation = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: formData.name,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        duration: selectedService.durationInterval,
+        email: formData.email,
+        phone: formData.phone,
+        time: selectedCell.time,
+        date: selectedDate,
+        staffId: selectedStaffId || undefined
+      }
+
+      setReservations([...reservations, newReservation])
     }
 
-    setReservations([...reservations, newReservation])
     setIsModalOpen(false)
     setFormData({ name: '', serviceId: '', email: '', phone: '' })
     setSelectedService(null)
+    setSelectedStaffId('')
   }
 
   const getReservationForCell = (time: string, dayIndex: number) => {
@@ -232,6 +296,29 @@ export default function Calendar({ userName }: { userName: string }) {
     const weekDates = getWeekDates(currentDate)
     const cellDate = weekDates[dayIndex]
     
+    // Si hay personal seleccionado, buscar en sus reservas
+    if (selectedStaff) {
+      const dateString = getDateString(cellDate)
+      const staffReservations = getStaffReservations(selectedStaff.id, dateString)
+      const staffReservation = staffReservations.find(r => r.time === time && r.serviceId === selectedService.id)
+      if (staffReservation) {
+        return {
+          id: staffReservation.id,
+          name: staffReservation.clientName,
+          serviceId: staffReservation.serviceId,
+          serviceName: staffReservation.serviceName,
+          duration: staffReservation.duration,
+          email: staffReservation.clientEmail,
+          phone: staffReservation.clientPhone,
+          time: staffReservation.time,
+          date: staffReservation.date,
+          staffId: staffReservation.staffId
+        }
+      }
+      return null
+    }
+    
+    // Si no hay personal seleccionado, buscar en reservas generales
     return reservations.find(r => {
       const reservationDate = new Date(r.date)
       return r.serviceId === selectedService.id &&
@@ -249,6 +336,8 @@ export default function Calendar({ userName }: { userName: string }) {
     setSelectedTime(null)
     setFormData({ name: '', serviceId: '', email: '', phone: '' })
     setSelectedService(null)
+    setSelectedStaffId('')
+    setShowStaffDropdown(false)
   }
 
   // Obtener todos los turnos únicos para mostrar en el calendario
@@ -284,10 +373,26 @@ export default function Calendar({ userName }: { userName: string }) {
                 onClick={() => setShowServiceDropdown(!showServiceDropdown)}
                 className="flex items-center space-x-2 px-3 py-1.5 hover:bg-gray-50 rounded-lg border border-gray-200 w-full sm:w-auto justify-center"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="19" viewBox="0 0 18 19" fill="none">
-                  <path d="M3.75 15.8113V15.0613C3.75 12.1618 6.1005 9.81127 9 9.81127V9.81127C11.8995 9.81127 14.25 12.1618 14.25 15.0613V15.8113" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M9 9.81127C10.6569 9.81127 12 8.46813 12 6.81127C12 5.15442 10.6569 3.81127 9 3.81127C7.34315 3.81127 6 5.15442 6 6.81127C6 8.46813 7.34315 9.81127 9 9.81127Z" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                {selectedService ? (
+                  <div className={`w-5 h-5 rounded flex items-center justify-center ${
+                    selectedService.type === 'sport' ? 'bg-blue-100' : 
+                    selectedService.type === 'consultation' ? 'bg-green-100' : 'bg-pink-100'
+                  }`}>
+                    {selectedService.type === 'sport' ? (
+                      <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                    ) : selectedService.type === 'consultation' ? (
+                      <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3 h-3 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    )}
+                  </div>
+                ) : null}
                 <span className="text-gray-700">
                   {selectedService ? selectedService.name : 'Seleccionar Servicio'}
                 </span>
@@ -366,21 +471,120 @@ export default function Calendar({ userName }: { userName: string }) {
               </button>
             </div>
 
+            {/* Indicador de personal seleccionado */}
+            {selectedStaff && selectedService?.needsStaff && (
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowStaffDropdown(!showStaffDropdown)}
+                    className="flex items-center px-3 py-1.5 text-gray-700 bg-white rounded-lg hover:bg-gray-50 border border-gray-200"
+                  >
+                    <UserIcon className="h-4 w-4 text-gray-600 mr-2" />
+                    <span className="text-gray-700">
+                      {selectedStaff.name} - {selectedStaff.position}
+                    </span>
+                    <ChevronDownIcon className={`h-4 w-4 ml-2 transition-transform duration-200 ${showStaffDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {/* Dropdown para cambiar personal */}
+                  {showStaffDropdown && selectedService && (
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                      <div className="p-2">
+                        {getAvailableStaffForService(selectedService.id).map((member) => (
+                          <button
+                            key={member.id}
+                            onClick={() => {
+                              setSelectedStaff(member)
+                              setShowStaffDropdown(false)
+                            }}
+                            className={`w-full flex items-center p-3 text-left hover:bg-gray-50 rounded-lg transition-colors ${
+                              member.id === selectedStaff?.id ? 'bg-blue-50 text-blue-600' : ''
+                            }`}
+                          >
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                              <UserIcon className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-800">{member.name}</div>
+                              <div className="text-sm text-gray-500">{member.position}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setSelectedStaff(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Limpiar selección de personal"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center space-x-4 w-full sm:w-auto justify-center">
-              <div className="flex items-center border border-gray-200 rounded-lg">
-                <button onClick={() => addDays(-1)} className="p-2 hover:bg-gray-50 border-r border-gray-200">
+              <div className="flex items-center border border-gray-200 rounded-lg w-[320px]">
+                <button onClick={() => addDays(-1)} className="p-2 hover:bg-gray-50 border-r border-gray-200 w-12 flex justify-center">
                   <ChevronLeftIcon className="h-5 w-5 text-[#006AFC]" />
                 </button>
-                <div className="flex items-center px-4 py-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="19" viewBox="0 0 18 19" fill="none" className="mr-2">
-                    <path d="M14.25 3.31127H3.75C2.92157 3.31127 2.25 3.98284 2.25 4.81127V15.3113C2.25 16.1397 2.92157 16.8113 3.75 16.8113H14.25C15.0784 16.8113 15.75 16.1397 15.75 15.3113V4.81127C15.75 3.98284 15.0784 3.31127 14.25 3.31127Z" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M12 1.81127V4.81127" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M6 1.81127V4.81127" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2.25 7.81127H15.75" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <span className="text-gray-700">{formatDate(currentDate)}</span>
+                <div className="flex items-center px-4 py-2 flex-1 justify-center relative min-w-0">
+                  <button 
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className="flex items-center hover:bg-gray-50 rounded p-1 transition-colors min-w-0"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="19" viewBox="0 0 18 19" fill="none" className="mr-2 flex-shrink-0">
+                      <path d="M14.25 3.31127H3.75C2.92157 3.31127 2.25 3.98284 2.25 4.81127V15.3113C2.25 16.1397 2.92157 16.8113 3.75 16.8113H14.25C15.0784 16.8113 15.75 16.1397 15.75 15.3113V4.81127C15.75 3.98284 15.0784 3.31127 14.25 3.31127Z" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M12 1.81127V4.81127" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M6 1.81127V4.81127" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2.25 7.81127H15.75" stroke="#2C3442" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span className="text-gray-700 truncate">{formatDate(currentDate)}</span>
+                  </button>
+                  
+                  {/* Calendario desplegable */}
+                  {showDatePicker && (
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 w-80 date-picker-container">
+                      <div className="p-4">
+                        <h3 className="font-medium mb-2">Seleccionar Fecha</h3>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Fecha
+                            </label>
+                            <input
+                              type="date"
+                              value={selectedDateForPicker}
+                              onChange={(e) => setSelectedDateForPicker(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC]"
+                            />
+                          </div>
+                          {selectedDateForPicker && (
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleDatePickerChange(selectedDateForPicker)}
+                                className="flex-1 px-4 py-2 bg-[#006AFC] text-white rounded-lg hover:bg-blue-600 transition-colors"
+                              >
+                                Ir a fecha
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setShowDatePicker(false)
+                                  setSelectedDateForPicker('')
+                                }}
+                                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button onClick={() => addDays(1)} className="p-2 hover:bg-gray-50 border-l border-gray-200">
+                <button onClick={() => addDays(1)} className="p-2 hover:bg-gray-50 border-l border-gray-200 w-12 flex justify-center">
                   <ChevronRightIcon className="h-5 w-5 text-[#006AFC]" />
                 </button>
               </div>
@@ -409,8 +613,60 @@ export default function Calendar({ userName }: { userName: string }) {
             </div>
           )}
 
+          {/* Selector de personal cuando el servicio lo requiere */}
+          {selectedService?.needsStaff && !selectedStaff && (
+            <div className="text-center py-8">
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <UserIcon className="w-10 h-10 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-800 mb-2">Selecciona el personal</h3>
+              <p className="text-gray-600 mb-6">Este servicio requiere personal específico. Elige quién lo atenderá:</p>
+              <div className="relative inline-block">
+                <button 
+                  onClick={() => setShowStaffDropdown(!showStaffDropdown)}
+                  className="flex items-center px-4 py-2 bg-[#006AFC] text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  <UserIcon className="h-5 w-5 mr-2" />
+                  Seleccionar Personal
+                  <ChevronDownIcon className={`h-4 w-4 ml-2 transition-transform duration-200 ${showStaffDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showStaffDropdown && (
+                  <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                    <div className="p-2">
+                      {getAvailableStaffForService(selectedService.id).length === 0 ? (
+                        <div className="p-3 text-center text-gray-500">
+                          No hay personal disponible para este servicio
+                        </div>
+                      ) : (
+                        getAvailableStaffForService(selectedService.id).map((member) => (
+                          <button
+                            key={member.id}
+                            onClick={() => {
+                              setSelectedStaff(member)
+                              setShowStaffDropdown(false)
+                            }}
+                            className="w-full flex items-center p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                          >
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                              <UserIcon className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-800">{member.name}</div>
+                              <div className="text-sm text-gray-500">{member.position}</div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Calendario */}
-          {selectedService && (
+          {selectedService && (!selectedService.needsStaff || selectedStaff) && (
             <div className="overflow-x-auto">
               <div className="flex min-w-[800px] pt-4">
                 {/* Time slots a la izquierda */}
@@ -485,6 +741,11 @@ export default function Calendar({ userName }: { userName: string }) {
                                       <div className="bg-[#006AFC] text-white text-sm px-1.5 py-0.5 rounded-md inline-block self-start truncate">
                                         {reservation.serviceName}
                                       </div>
+                                      {reservation.staffId && (
+                                        <div className="text-xs text-gray-600 mt-1">
+                                          {staff.find(s => s.id === reservation.staffId)?.name}
+                                        </div>
+                                      )}
                                       <div className="text-xs text-gray-500 mt-auto">{reservation.duration}</div>
                                     </div>
                                   </div>
@@ -549,6 +810,60 @@ export default function Calendar({ userName }: { userName: string }) {
                     ))}
                   </select>
                 </div>
+
+                {/* Selector de personal */}
+                {selectedService?.needsStaff && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Personal asignado
+                    </label>
+                    <div className="relative">
+                      <button 
+                        type="button"
+                        onClick={() => setShowStaffDropdown(!showStaffDropdown)}
+                        className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006AFC] focus:border-transparent"
+                      >
+                        <span className="text-gray-700">
+                          {selectedStaffId ? 
+                            staff.find(s => s.id === selectedStaffId)?.name || 'Seleccionar personal' 
+                            : 'Seleccionar personal'
+                          }
+                        </span>
+                        <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200 ${showStaffDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+                      
+                      {showStaffDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
+                          <div className="p-2">
+                            {getAvailableStaffForService(selectedService.id).length === 0 ? (
+                              <div className="p-3 text-center text-gray-500">
+                                No hay personal disponible para este servicio
+                              </div>
+                            ) : (
+                              getAvailableStaffForService(selectedService.id).map((member) => (
+                                <button
+                                  key={member.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedStaffId(member.id)
+                                    setShowStaffDropdown(false)
+                                  }}
+                                  className="w-full flex items-center p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                                >
+                                  <UserIcon className="h-4 w-4 text-gray-400 mr-3" />
+                                  <div>
+                                    <div className="font-medium text-gray-800">{member.name}</div>
+                                    <div className="text-sm text-gray-500">{member.position}</div>
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {!selectedCell && selectedService && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

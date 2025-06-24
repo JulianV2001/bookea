@@ -153,11 +153,38 @@ const MiNegocioIcon = () => (
   </svg>
 )
 
+const PersonalIcon = () => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width="18" 
+    height="19" 
+    viewBox="0 0 18 19" 
+    fill="none"
+    className="h-6 w-6"
+  >
+    <path 
+      d="M9 9.81127C11.0711 9.81127 12.75 8.13237 12.75 6.06127C12.75 3.99018 11.0711 2.31127 9 2.31127C6.92893 2.31127 5.25 3.99018 5.25 6.06127C5.25 8.13237 6.92893 9.81127 9 9.81127Z" 
+      stroke="currentColor" 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+    <path 
+      d="M2.25 16.5613C2.25 13.5613 5.25 11.0613 9 11.0613C12.75 11.0613 15.75 13.5613 15.75 16.5613" 
+      stroke="currentColor" 
+      strokeWidth="1.5" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
 const menuItems = [
   { name: 'Reservas', icon: ReservasIcon, href: '/dashboard' },
   { name: 'Horarios', icon: ClockIcon, href: '/dashboard/horarios' },
   { name: 'Reportes', icon: ReportesIcon, href: '/dashboard/reportes' },
   { name: 'Servicios', icon: ServiciosIcon, href: '/dashboard/servicios' },
+  { name: 'Personal', icon: PersonalIcon, href: '/dashboard/personal' },
   { name: 'Pagos', icon: PagosIcon, href: '/dashboard/pagos' },
   { name: 'Mi negocio', icon: MiNegocioIcon, href: '/dashboard/business' },
 ]

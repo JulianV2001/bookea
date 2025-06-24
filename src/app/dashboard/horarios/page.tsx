@@ -276,20 +276,6 @@ export default function HorariosPage() {
                   <div className="mb-8">
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-lg font-medium text-gray-700">Días de Atención</h2>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={handleSetAllDaysOpen}
-                          className="px-3 py-1 text-sm bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-                        >
-                          Marcar Todos Abiertos
-                        </button>
-                        <button
-                          onClick={handleSetAllDaysClosed}
-                          className="px-3 py-1 text-sm bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                        >
-                          Marcar Todos Cerrados
-                        </button>
-                      </div>
                     </div>
                     <div className="grid grid-cols-7 gap-4">
                       {weekDays.map(day => {
