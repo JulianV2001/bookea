@@ -44,6 +44,12 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
 
   // Cargar datos del localStorage al inicializar
   useEffect(() => {
+    // Verificar que estamos en el cliente
+    if (typeof window === 'undefined') {
+      setIsLoading(false)
+      return
+    }
+
     try {
       const savedScheduleConfig = localStorage.getItem('scheduleConfig')
       if (savedScheduleConfig) {
@@ -69,20 +75,24 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const updateScheduleConfig = (config: ScheduleConfig) => {
     setScheduleConfig(config)
     // Guardar en localStorage
-    try {
-      localStorage.setItem('scheduleConfig', JSON.stringify(config))
-    } catch (error) {
-      console.error('Error saving schedule config to localStorage:', error)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('scheduleConfig', JSON.stringify(config))
+      } catch (error) {
+        console.error('Error saving schedule config to localStorage:', error)
+      }
     }
   }
 
   const updateMaxBookingDays = (days: number) => {
     setMaxBookingDays(days)
     // Guardar en localStorage
-    try {
-      localStorage.setItem('maxBookingDays', days.toString())
-    } catch (error) {
-      console.error('Error saving maxBookingDays to localStorage:', error)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('maxBookingDays', days.toString())
+      } catch (error) {
+        console.error('Error saving maxBookingDays to localStorage:', error)
+      }
     }
   }
 
@@ -96,10 +106,12 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     setSpecialDates(prev => {
       const newSpecialDates = [...prev, { date: formattedDate, type }]
       // Guardar en localStorage
-      try {
-        localStorage.setItem('specialDates', JSON.stringify(newSpecialDates))
-      } catch (error) {
-        console.error('Error saving special dates to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('specialDates', JSON.stringify(newSpecialDates))
+        } catch (error) {
+          console.error('Error saving special dates to localStorage:', error)
+        }
       }
       return newSpecialDates
     })
@@ -117,10 +129,12 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         return formattedDate !== formattedDateToRemove
       })
       // Guardar en localStorage
-      try {
-        localStorage.setItem('specialDates', JSON.stringify(newSpecialDates))
-      } catch (error) {
-        console.error('Error saving special dates to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('specialDates', JSON.stringify(newSpecialDates))
+        } catch (error) {
+          console.error('Error saving special dates to localStorage:', error)
+        }
       }
       return newSpecialDates
     })

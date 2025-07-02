@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
@@ -34,11 +34,26 @@ export default function RegisterPage() {
   const router = useRouter()
   const { selectedNiche } = useNiche()
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
-  // Si no hay nicho seleccionado, redirigir a la selección
-  if (!selectedNiche) {
-    router.push('/onboarding/niche-selection')
-    return null
+  // Manejar redirección de manera segura con useEffect
+  useEffect(() => {
+    if (!selectedNiche && !isRedirecting) {
+      setIsRedirecting(true)
+      router.push('/onboarding/niche-selection')
+    }
+  }, [selectedNiche, router, isRedirecting])
+
+  // Si no hay nicho seleccionado, mostrar loading
+  if (!selectedNiche || isRedirecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#006AFC] mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
   }
 
   const config = nicheConfig[selectedNiche]

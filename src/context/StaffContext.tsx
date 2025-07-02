@@ -47,6 +47,12 @@ export function StaffProvider({ children }: { children: ReactNode }) {
 
   // Cargar personal del localStorage al inicializar
   useEffect(() => {
+    // Verificar que estamos en el cliente
+    if (typeof window === 'undefined') {
+      setIsLoading(false)
+      return
+    }
+
     try {
       const savedStaff = localStorage.getItem('staff')
       const savedReservations = localStorage.getItem('staffReservations')
@@ -94,10 +100,12 @@ export function StaffProvider({ children }: { children: ReactNode }) {
   const addStaff = (newStaff: Staff) => {
     setStaff(prev => {
       const newStaffList = [...prev, newStaff]
-      try {
-        localStorage.setItem('staff', JSON.stringify(newStaffList))
-      } catch (error) {
-        console.error('Error saving staff to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('staff', JSON.stringify(newStaffList))
+        } catch (error) {
+          console.error('Error saving staff to localStorage:', error)
+        }
       }
       return newStaffList
     })
@@ -106,10 +114,12 @@ export function StaffProvider({ children }: { children: ReactNode }) {
   const updateStaff = (updatedStaff: Staff) => {
     setStaff(prev => {
       const newStaffList = prev.map(s => s.id === updatedStaff.id ? updatedStaff : s)
-      try {
-        localStorage.setItem('staff', JSON.stringify(newStaffList))
-      } catch (error) {
-        console.error('Error saving staff to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('staff', JSON.stringify(newStaffList))
+        } catch (error) {
+          console.error('Error saving staff to localStorage:', error)
+        }
       }
       return newStaffList
     })
@@ -118,10 +128,12 @@ export function StaffProvider({ children }: { children: ReactNode }) {
   const deleteStaff = (staffId: string) => {
     setStaff(prev => {
       const newStaffList = prev.filter(s => s.id !== staffId)
-      try {
-        localStorage.setItem('staff', JSON.stringify(newStaffList))
-      } catch (error) {
-        console.error('Error saving staff to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('staff', JSON.stringify(newStaffList))
+        } catch (error) {
+          console.error('Error saving staff to localStorage:', error)
+        }
       }
       return newStaffList
     })
@@ -134,10 +146,12 @@ export function StaffProvider({ children }: { children: ReactNode }) {
   const addStaffReservation = (reservation: StaffReservation) => {
     setStaffReservations(prev => {
       const newReservations = [...prev, reservation]
-      try {
-        localStorage.setItem('staffReservations', JSON.stringify(newReservations))
-      } catch (error) {
-        console.error('Error saving staff reservations to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('staffReservations', JSON.stringify(newReservations))
+        } catch (error) {
+          console.error('Error saving staff reservations to localStorage:', error)
+        }
       }
       return newReservations
     })

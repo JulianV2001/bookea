@@ -48,6 +48,12 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
 
   // Cargar servicios del localStorage al inicializar
   useEffect(() => {
+    // Verificar que estamos en el cliente
+    if (typeof window === 'undefined') {
+      setIsLoading(false)
+      return
+    }
+
     try {
       const savedServices = localStorage.getItem('services')
       if (savedServices) {
@@ -142,10 +148,12 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
     setServices(prev => {
       const newServices = [...prev, service]
       // Guardar en localStorage
-      try {
-        localStorage.setItem('services', JSON.stringify(newServices))
-      } catch (error) {
-        console.error('Error saving services to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('services', JSON.stringify(newServices))
+        } catch (error) {
+          console.error('Error saving services to localStorage:', error)
+        }
       }
       return newServices
     })
@@ -157,10 +165,12 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
         service.id === updatedService.id ? updatedService : service
       )
       // Guardar en localStorage
-      try {
-        localStorage.setItem('services', JSON.stringify(newServices))
-      } catch (error) {
-        console.error('Error saving services to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('services', JSON.stringify(newServices))
+        } catch (error) {
+          console.error('Error saving services to localStorage:', error)
+        }
       }
       return newServices
     })
@@ -170,10 +180,12 @@ export function ServicesProvider({ children }: { children: ReactNode }) {
     setServices(prev => {
       const newServices = prev.filter(service => service.id !== serviceId)
       // Guardar en localStorage
-      try {
-        localStorage.setItem('services', JSON.stringify(newServices))
-      } catch (error) {
-        console.error('Error saving services to localStorage:', error)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('services', JSON.stringify(newServices))
+        } catch (error) {
+          console.error('Error saving services to localStorage:', error)
+        }
       }
       return newServices
     })

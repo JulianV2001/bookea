@@ -49,6 +49,9 @@ export default function Calendar({ userName }: { userName: string }) {
 
   // Cerrar calendario desplegable cuando se hace click fuera
   useEffect(() => {
+    // Verificar que estamos en el cliente
+    if (typeof window === 'undefined') return
+
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
       if (showDatePicker && !target.closest('.date-picker-container')) {
