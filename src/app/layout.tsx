@@ -4,6 +4,7 @@ import './globals.css'
 import { ScheduleProvider } from '@/context/ScheduleContext'
 import { ServicesProvider } from '@/context/ServicesContext'
 import { StaffProvider } from '@/context/StaffContext'
+import { NicheProvider } from '@/context/NicheContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,13 +21,15 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <ScheduleProvider>
-          <ServicesProvider>
-            <StaffProvider>
-              {children}
-            </StaffProvider>
-          </ServicesProvider>
-        </ScheduleProvider>
+        <NicheProvider>
+          <ScheduleProvider>
+            <ServicesProvider>
+              <StaffProvider>
+                {children}
+              </StaffProvider>
+            </ServicesProvider>
+          </ScheduleProvider>
+        </NicheProvider>
       </body>
     </html>
   )

@@ -5,6 +5,7 @@ import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, XMarkIcon, ChevronDownIcon
 import { useSchedule } from '@/context/ScheduleContext'
 import { useServices, Service, TimeSlot } from '@/context/ServicesContext'
 import { useStaff, Staff } from '@/context/StaffContext'
+import { useNiche } from '@/context/NicheContext'
 
 // Tipo para las reservas
 type Reservation = {
@@ -24,6 +25,7 @@ export default function Calendar({ userName }: { userName: string }) {
   const { scheduleConfig, specialDates, maxBookingDays, isLoading } = useSchedule()
   const { services, generateTimeSlots } = useServices()
   const { staff, getStaffReservations, addStaffReservation } = useStaff()
+  const { selectedNiche } = useNiche()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ time: string; day: number } | null>(null)
@@ -482,7 +484,7 @@ export default function Calendar({ userName }: { userName: string }) {
             </div>
 
             {/* Indicador de personal seleccionado */}
-            {selectedStaff && selectedService?.needsStaff && (
+            {selectedStaff && selectedService?.needsStaff && selectedNiche !== 'sport' && (
               <div className="flex items-center space-x-2">
                 <div className="relative">
                   <button
@@ -524,13 +526,6 @@ export default function Calendar({ userName }: { userName: string }) {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => setSelectedStaff(null)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Limpiar selección de personal"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
               </div>
             )}
 
@@ -623,8 +618,8 @@ export default function Calendar({ userName }: { userName: string }) {
             </div>
           )}
 
-          {/* Selector de personal cuando el servicio lo requiere */}
-          {selectedService?.needsStaff && !selectedStaff && (
+          {/* Selector de personal cuando el servicio lo requiere Y NO es nicho deportivo */}
+          {selectedService?.needsStaff && !selectedStaff && selectedNiche !== 'sport' && (
             <div className="text-center py-8">
               <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <UserIcon className="w-10 h-10 text-blue-600" />
@@ -676,7 +671,7 @@ export default function Calendar({ userName }: { userName: string }) {
           )}
 
           {/* Calendario */}
-          {selectedService && (!selectedService.needsStaff || selectedStaff) && (
+          {selectedService && (selectedNiche === 'sport' || !selectedService.needsStaff || selectedStaff) && (
             <div className="overflow-x-auto">
               <div className="flex min-w-[800px] pt-4">
                 {/* Time slots a la izquierda */}
